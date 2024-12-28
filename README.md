@@ -1,1 +1,1 @@
-Use python3 BirdSoundPlayer.py to run it
+Use `python3 BirdSoundPlayer.py` to run it
