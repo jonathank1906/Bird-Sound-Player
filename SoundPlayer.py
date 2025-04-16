@@ -4,6 +4,7 @@ import pygame
 import threading
 from datetime import datetime
 import time as pytime
+import subprocess  # For pinging
 
 # Initialize pygame mixer
 pygame.mixer.init()
@@ -29,7 +30,6 @@ class MP3SchedulerApp:
         self.file_path = tk.Entry(self.root, width=40)
         self.file_path.grid(row=0, column=1)
 
-        # Browse button for file selection
         self.browse_button = tk.Button(self.root, text="Browse", command=self.browse_file)
         self.browse_button.grid(row=0, column=2)
 
@@ -46,11 +46,10 @@ class MP3SchedulerApp:
         self.stop_button.grid(row=4, column=0, columnspan=2)
 
     def browse_file(self):
-        # Open file dialog to choose an MP3 file
         file = filedialog.askopenfilename(filetypes=[("MP3 files", "*.mp3")])
         if file:
-            self.file_path.delete(0, tk.END)  # Clear current entry
-            self.file_path.insert(0, file)  # Insert selected file path
+            self.file_path.delete(0, tk.END)
+            self.file_path.insert(0, file)
 
     def start_scheduling(self):
         if not self.file_path.get() or not self.start_time.get() or not self.end_time.get():
@@ -58,16 +57,13 @@ class MP3SchedulerApp:
             return
 
         try:
-            # Parse start and end times
             self.start_time_value = datetime.strptime(self.start_time.get(), "%H:%M").time()
             self.end_time_value = datetime.strptime(self.end_time.get(), "%H:%M").time()
 
-            # Check if times are valid
             if self.start_time_value >= self.end_time_value:
                 messagebox.showerror("Error", "End time must be later than start time!")
                 return
 
-            # Start threads for playback and stopping
             self.running = True
             self.play_thread = threading.Thread(target=self.manage_playback, daemon=True)
             self.play_thread.start()
@@ -89,41 +85,55 @@ class MP3SchedulerApp:
         while self.running:
             now = datetime.now().time()
 
-            # Start playing if within range and not already playing
             if self.start_time_value <= now < self.end_time_value and not self.is_playing:
                 self.play_music()
 
-            # Check if music finished, and restart it if within the time range
             if self.is_playing and not pygame.mixer.music.get_busy():
                 print("Music finished. Checking if within time range to restart.")
                 if self.start_time_value <= now < self.end_time_value:
                     self.play_music()
 
-            pytime.sleep(1)  # Wait a bit before checking again
+            pytime.sleep(1)
 
     def monitor_stop_time(self):
         while self.running:
             now = datetime.now().time()
 
-            # Stop music if end time is reached
             if now >= self.end_time_value and self.is_playing:
                 self.stop_music()
 
-            pytime.sleep(1)  # Wait a bit before checking again
+            pytime.sleep(1)
 
     def play_music(self):
         try:
+            # Send a ping before playing music
+            try:
+                subprocess.run(["ping", "-c", "1", "8.8.8.8"], stdout=subprocess.DEVNULL)
+                print(f"Ping sent before music playback at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            except Exception as e:
+                print(f"Ping failed before play: {e}")
+
             pygame.mixer.music.load(self.file_path.get())
-            pygame.mixer.music.play(-1)  # Loop music
+            pygame.mixer.music.play(-1)
             self.is_playing = True
             print(f"Music started at {datetime.now().strftime('%H:%M:%S')}")
         except Exception as e:
             messagebox.showerror("Error", f"Error playing music: {e}")
 
     def stop_music(self):
-        pygame.mixer.music.stop()
-        self.is_playing = False
-        print(f"Music stopped at {datetime.now().strftime('%H:%M:%S')}")
+        try:
+            # Send a ping before stopping music
+            try:
+                subprocess.run(["ping", "-c", "1", "8.8.8.8"], stdout=subprocess.DEVNULL)
+                print(f"Ping sent before stopping music at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            except Exception as e:
+                print(f"Ping failed before stop: {e}")
+
+            pygame.mixer.music.stop()
+            self.is_playing = False
+            print(f"Music stopped at {datetime.now().strftime('%H:%M:%S')}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error stopping music: {e}")
 
 if __name__ == "__main__":
     root = tk.Tk()
